@@ -3,7 +3,7 @@ game "gta5"
 lua54 "yes"
 
 author "Brodino"
-description "Hehehe"
+description "Get out of my property"
 
 shared_scripts { "config.lua", }
 server_scripts { "server/*", }
