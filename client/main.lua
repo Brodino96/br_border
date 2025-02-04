@@ -5,7 +5,9 @@ local walking = false
 
 -------------------- # -------------------- # -------------------- # --------------------
 
-local function barakobama()
+---Turns the screen black and disable the player controls
+---@return nil
+local function blackout()
     DoScreenFadeOut(800)
     Wait(1000)
 
@@ -17,7 +19,9 @@ local function barakobama()
     end)
 end
 
-local function donaldtrump()
+---Sets the screen to the game and enables the player controls
+---@return nil
+local function awakening()
     Wait(3000)
     DoScreenFadeIn(800)
     Wait(1500)
@@ -25,78 +29,23 @@ local function donaldtrump()
     ClearPedTasks(PlayerPedId())
 end
 
-local function removePlayerClothes(playerPed)
-    local clothes = {
-        { id = 1, set = 0 }, -- mask
-        { id = 3, set = 15 }, -- hands
-        { id = 4, set = 14 }, -- legs
-        { id = 5, set = 0 }, -- bags
-        { id = 6, set = 34 }, -- shoes
-        { id = 7, set = 0 }, -- accessory
-        { id = 8, set = 15 }, -- shirt
-        { id = 9, set = 0 }, -- kevlar
-        { id = 10, set = 0 }, -- badge
-        { id = 11, set = 15 }, -- torso
-    }
-    local props = {
-        { id = 0, set = -1 },
-        { id = 1, set = -1 },
-        { id = 2, set = -1 },
-        { id = 6, set = -1 },
-        { id = 7, set = -1 },
-    }
-
-    for i = 1, #clothes do
-        SetPedComponentVariation(playerPed, clothes[i].id, clothes[i].set, 0, 0)
-        --exports["p-clothing"]:toggleClothing(clothes[i])
-    end
-    for k = 1, #props do
-        SetPedPropIndex(playerPed, props[k].id, props[k].set, 0, true)
-        --exports["p-clothing"]:toggleProps(props[k])
-    end
-end
-
-local function useRandomRespawn(playerPed, pCoords)
-    local node = Config.nodes.random.feet.nodes[math.random(1, #Config.nodes.random.feet.nodes)]
-
-    barakobama() -- Screen to black
-
-    SetEntityCoords(playerPed, node.x, node.y, node.z, false, false, false, false)
-    SetEntityHeading(playerPed, node.w)
-
-    removePlayerClothes(playerPed)
-
-    donaldtrump() -- Screen to game
-end
-
+---Brings back the player when on feet
+---@param playerPed integer The ped's handle
+---@param pCoords vector3 The player coordinates
 local function onFeet(playerPed, pCoords)
 
-    local useRandom = false
-    math.randomseed(42069, GetGameTimer())
-    local generated = math.random(1, 100)
+    local closestNode = Config.nodes.feet[1]
+    local nodeDist = #(pCoords - vec3(closestNode.x, closestNode.y, closestNode.z))
 
-    for i = 1, Config.nodes.random.feet.chance do
-        if math.random(1, 100) == generated then
-            useRandom = true
-        end
-    end
-
-    if true then
-    --if useRandom then
-        return useRandomRespawn(playerPed, pCoords)
-    end
-
-    local closestNode
-    local nodeDistance = 999999999.9
-    local playerC = vec3(pCoords.x, pCoords.y, pCoords.z)
-
-    for i = 1, #Config.nodes.feet do
-        if #(playerC - vec3(Config.nodes.feet[i].x, Config.nodes.feet[i].y, Config.nodes.feet[i].z)) < nodeDistance then
+    for i = 2, #Config.nodes.feet do
+        local dist = #(pCoords - vec3(Config.nodes.feet[i].x, Config.nodes.feet[i].y, Config.nodes.feet[i].z))
+        if dist < nodeDist then
             closestNode = Config.nodes.feet[i]
+            nodeDist = dist
         end
     end
 
-    barakobama() -- Screen to black
+    blackout()
 
     SetEntityCoords(playerPed, closestNode.x, closestNode.y, closestNode.z, false, false, false, false)
     SetEntityHeading(playerPed, closestNode.w)
@@ -104,50 +53,49 @@ local function onFeet(playerPed, pCoords)
     local coords = GetEntityCoords(playerPed) + (GetEntityForwardVector(playerPed) * 30)
     TaskGoToCoordAnyMeans(playerPed, coords.x, coords.y, coords.z, 1.0, 0, false, 0, 0)
 
-    donaldtrump() -- Screen to game
+    awakening()
 end
 
+---Brings back the player when in a car
+---@param playerPed integer The ped's handle
+---@param pCoords vector3 The player coordinates
 local function onCar(playerPed, pCoords)
 
-    local closestNode
-    local nodeDistance = 999999999.9
-
     local veh = GetVehiclePedIsIn(playerPed, false)
-    local vehType = GetVehicleType(veh)
-
-    local seats = GetVehicleModelNumberOfSeats(GetEntityModel(veh))
-
-    if seats < 1 then
+    if not DoesEntityExist(veh) then
         return onFeet(playerPed, pCoords)
     end
 
-    for i = -1, seats - 1 do
-        local ped = GetPedInVehicleSeat(veh, i)
-        -- If the ped is a player and i'm not that player then just do the blackout
-        if IsPedAPlayer(ped) and ped ~= playerPed then
-            barakobama()
-            donaldtrump()
-            return
-        end
-
-        if ped == playerPed then
-            break
-        end
-    end
-
+    local vehType = GetVehicleType(veh)
     if vehType == "heli" or vehType == "plane" or vehType == "boat" or vehType == "submarine" then
         return
     end
 
-    for i = 1, #Config.nodes.car do
+    local seats = GetVehicleModelNumberOfSeats(GetEntityModel(veh))
+    if seats < 1 then
+        return onFeet(playerPed, pCoords)
+    end
+
+    local driver = GetPedInVehicleSeat(veh, -1)
+    -- check if i'm not the driver and if the driver is a player
+    if driver ~= playerPed and IsPedAPlayer(driver) then
+        blackout()
+        awakening()
+        return
+    end
+
+    local closestNode = Config.nodes.car[1]
+    local nodeDist = #(pCoords - vec3(closestNode.x, closestNode.y, closestNode.z))
+
+    for i = 2, #Config.nodes.car do
         local dist = #(pCoords - vec3(Config.nodes.car[i].x, Config.nodes.car[i].y, Config.nodes.car[i].z))
-        if dist < nodeDistance then
+        if dist < nodeDist then
             closestNode = Config.nodes.car[i]
-            nodeDistance = dist
+            nodeDist = dist
         end
     end
 
-    barakobama()
+    blackout()
 
     SetEntityCoords(veh, closestNode.x, closestNode.y, closestNode.z, false, false, false, false)
     SetEntityHeading(veh, closestNode.w)
@@ -158,27 +106,33 @@ local function onCar(playerPed, pCoords)
         TaskVehicleDriveToCoord(playerPed, veh, coords.x, coords.y, coords.z, 30.0, 1.0, GetEntityModel(veh), 786603, 0, 1)
     end
 
-    donaldtrump()
+    awakening()
 
 end
 
-local function immigrate()
+---Initializes the process
+---@return nil
+local function init()
+
+    if not Config.enabled then
+        return
+    end
 
     local playerPed = PlayerPedId()
     local pCoords = GetEntityCoords(playerPed)
 
-    walking = true
+    walking = true -- Used later
 
     if not IsPedInAnyVehicle(playerPed, false) then
         return onFeet(playerPed, pCoords)
     end
 
-    onCar(playerPed, pCoords)
-
+    return onCar(playerPed, pCoords)
 end
 
 -------------------- # -------------------- # -------------------- # --------------------
 
+--- Creates the wall
 local wall = PolyZone:Create(Config.wall.coords, {
     name = "we_have_to_build_a_wall",
     minZ = Config.wall.height.min,
@@ -188,26 +142,26 @@ local wall = PolyZone:Create(Config.wall.coords, {
 
 wall:onPlayerInOut(function (inside)
     if inside and not bypass then
-        immigrate()
+        init()
     end
 end)
 
 -------------------- # -------------------- # -------------------- # --------------------
 
-RegisterNetEvent("br_immigration:sync")
-AddEventHandler("br_immigration:sync", function (value)
+RegisterNetEvent("br_border:sync")
+AddEventHandler("br_border:sync", function (value)
     bypass = value
 end)
 
-TriggerServerEvent("br_immigration:requestSync")
+TriggerServerEvent("br_border:sync")
 
 
 TriggerEvent("chat:addSuggestion", "/bypass", "Permette al giocatore indicato di andare verso la città", {
     { name = "[ID]", help = "Id del giocatore su cui eseguire il comando"}
 })
 
-AddEventHandler("onResourceStop", function (rname)
-    if rname ~= GetCurrentResourceName() then
+AddEventHandler("onResourceStop", function (name)
+    if name ~= GetCurrentResourceName() then
         return
     end
 

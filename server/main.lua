@@ -5,43 +5,54 @@ local players = {}
 
 --------------- # --------------- # --------------- # --------------- # ---------------
 
-local function isAdmin(id)
-    return false
-    --return IsPlayerAceAllowed(id, "admin")
+---Checks if the player is part of the staff
+---@param id number The player serverId
+---@return boolean
+local function isStaff(id)
+    return true
 end
 
-local function toggleBypass(id, source)
-    players[id] = not players[id]
-    TriggerClientEvent("ox_lib:notify", source, {
-        type = "info", title = "Bypapss per id ["..id.."] è ora ["..tostring(players[id]).."]"
-    })
-    TriggerClientEvent("br_immigration:sync", id, players[id])
+---Toggles the bypass mode for the given player
+---@param id number The target server id
+---@param source number The source server id
+---@return nil
+local function toggleBypass(id)
+
+    local serverId = tostring(id)
+    players[serverId] = not players[serverId]
+
+    TriggerClientEvent("br_border:sync", id, players[serverId])
 end
 
 --------------- # --------------- # --------------- # --------------- # ---------------
 
-RegisterNetEvent("br_immigration:requestSync")
-AddEventHandler("br_immigration:requestSync", function ()
+RegisterNetEvent("br_border:sync")
+AddEventHandler("br_border:sync", function ()
+
     if players[source] == nil then
         players[source] = defaultBypass
     end
 
-    if isAdmin(source) then
+    if isStaff(source) then
         players[source] = true
     end
 
-    TriggerClientEvent("br_immigration:sync", source, players[source])
+    TriggerClientEvent("br_border:sync", source, players[source])
 end)
 
 --------------- # --------------- # --------------- # --------------- # ---------------
 
 RegisterCommand("bypass", function (source, args)
 
-    if args[1] == nil or GetPlayerPed(args[1]) == 0 then
-        return TriggerClientEvent("ox_lib:notify", source, { type = "error", title = "Id inserito non valido" })
+    if not isStaff(source) then
+        return
     end
 
-    toggleBypass(args[1], source)
+    if not args[1] then
+        return
+    end
+
+    toggleBypass(args[1])
 end, false)
 
 --------------- # --------------- # --------------- # --------------- # ---------------
