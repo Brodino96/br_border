@@ -1,5 +1,4 @@
 Config = {
-
     enabled = true,
     debugMode = true,
 
@@ -44,15 +43,6 @@ Config = {
         feet = {
             vec4(2108.7188, 1407.0425, 75.3960, 19.9519),
         },
-
-        random = {
-            feet = {
-                chance = 4, -- In percentage
-                nodes = {
-                    vec4(-839.7521, 4182.3071, 215.2901, 44.8339),
-                }
-            }
-        }
     }
 
 }
