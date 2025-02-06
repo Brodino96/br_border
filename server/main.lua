@@ -14,7 +14,6 @@ end
 
 ---Toggles the bypass mode for the given player
 ---@param id number The target server id
----@param source number The source server id
 ---@return nil
 local function toggleBypass(id)
 
